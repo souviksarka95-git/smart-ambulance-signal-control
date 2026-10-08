@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Ambulance Signal Control | Live Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Leaflet Map CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --bg-base: #0a0d14;
+            --bg-surface: #121824;
+            --bg-card: rgba(22, 30, 46, 0.75);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(56, 189, 248, 0.3);
+            
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+
+            --emerald: #10b981;
+            --emerald-glow: rgba(16, 185, 129, 0.4);
+            --crimson: #ef4444;
+            --crimson-glow: rgba(239, 68, 68, 0.5);
+            --amber: #f59e0b;
+            --cyan: #06b6d4;
+            --blue: #3b82f6;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(6, 182, 212, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(239, 68, 68, 0.08) 0%, transparent 40%);
+        }
+
+        /* Top Header */
+        header {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-glass);
+            padding: 16px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 1000;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .brand-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+            animation: pulse-emergency 2.5s infinite;
+        }
+
+        @keyframes pulse-emergency {
+            0%, 100% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
+            50% { box-shadow: 0 0 30px rgba(239, 68, 68, 0.8); }
+        }
+
+        .brand-title h1 {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(90deg, #ffffff, #cbd5e1);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-title p {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .status-indicators {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .pill-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-glass);
+            border-radius: 9999px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .dot.online { background-color: var(--emerald); box-shadow: 0 0 8px var(--emerald); }
+        .dot.offline { background-color: var(--crimson); box-shadow: 0 0 8px var(--crimson); }
+
+        /* Metric Bar */
+        .metric-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            padding: 16px 28px;
+        }
+
+        .metric-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-glass);
+            border-radius: 14px;
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .metric-card:hover {
+            border-color: var(--border-hover);
+            transform: translateY(-2px);
+        }
+
+        .metric-card-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .metric-content h4 {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .metric-content .val {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        /* Layout Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 390px;
+            gap: 20px;
+            padding: 0 28px 24px 28px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* Map Container */
+        .map-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            min-height: 520px;
+        }
+
+        .map-card-header {
+            padding: 12px 18px;
+            background: rgba(18, 24, 36, 0.9);
+            border-bottom: 1px solid var(--border-glass);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        #map {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Custom Leaflet Markers */
+        .leaflet-div-icon {
+            background: transparent !important;
+            border: none !important;
+        }
+
+        .amb-marker-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .amb-pulse-ring {
+            position: absolute;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(239, 68, 68, 0.35);
+            animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+
+        @keyframes ping {
+            75%, 100% {
+                transform: scale(2.2);
+                opacity: 0;
+            }
+        }
+
+        .amb-badge {
+            width: 38px;
+            height: 38px;
+            background: #ef4444;
+            border: 3px solid #ffffff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            font-size: 16px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+
+        .signal-marker {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #ffffff;
+            font-weight: 700;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.6);
+            transition: all 0.3s ease;
+        }
+
+        .signal-marker.normal {
+            background: #10b981;
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.6);
+        }
+
+        .signal-marker.emergency {
+            background: #ef4444;
+            box-shadow: 0 0 25px rgba(239, 68, 68, 1);
+            animation: blink-signal 0.6s infinite alternate;
+        }
+
+        @keyframes blink-signal {
+            from { transform: scale(1); filter: brightness(1); }
+            to { transform: scale(1.3); filter: brightness(1.6); }
+        }
+
+        /* Sidebar Controls */
+        .sidebar-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .panel-box {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            padding: 18px;
+        }
+
+        .panel-box h3 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 12px 18px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            outline: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: #ffffff;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: #ffffff;
+            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+        }
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #f87171, #ef4444);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            border: 1px solid var(--border-glass);
+        }
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Signal List & Density Slider */
+        .junction-item {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-glass);
+            border-radius: 10px;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .junction-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .density-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        input[type="range"] {
+            flex: 1;
+            accent-color: var(--cyan);
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            cursor: pointer;
+        }
+
+        /* Activity Log */
+        .log-box {
+            height: 180px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--border-glass);
+            border-radius: 10px;
+            padding: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .log-box::-webkit-scrollbar {
+            width: 4px;
+        }
+        .log-box::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        .log-entry {
+            display: flex;
+            gap: 8px;
+            line-height: 1.4;
+        }
+        .log-entry .time { color: var(--text-muted); }
+        .log-entry.info { color: #38bdf8; }
+        .log-entry.alert { color: #f87171; font-weight: 600; }
+        .log-entry.success { color: #4ade80; }
+
+        @media (max-width: 1024px) {
+            .dashboard-grid { grid-template-columns: 1fr; }
+            .metric-bar { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header>
+        <div class="header-brand">
+            <div class="brand-icon">
+                <i class="fa-solid fa-truck-medical"></i>
+            </div>
+            <div class="brand-title">
+                <h1>Smart Ambulance Priority System</h1>
+                <p>Automated Green Corridor & Traffic Preemption Controller</p>
+            </div>
+        </div>
+
+        <div class="status-indicators">
+            <div class="pill-badge">
+                <span class="dot online" id="socketDot"></span>
+                <span id="socketText">Socket: Connecting</span>
+            </div>
+            <div class="pill-badge">
+                <span class="dot online"></span>
+                <span>MongoDB: Connected</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Metrics Bar -->
+    <div class="metric-bar">
+        <div class="metric-card">
+            <div class="metric-card-icon" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;">
+                <i class="fa-solid fa-ambulance"></i>
+            </div>
+            <div class="metric-content">
+                <h4>Active Ambulances</h4>
+                <div class="val" id="metricAmbulanceCount">0</div>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-card-icon" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">
+                <i class="fa-solid fa-traffic-light"></i>
+            </div>
+            <div class="metric-content">
+                <h4>Signal Intersections</h4>
+                <div class="val" id="metricSignalsCount">0</div>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-card-icon" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">
+                <i class="fa-solid fa-bolt"></i>
+            </div>
+            <div class="metric-content">
+                <h4>Emergency Overrides</h4>
+                <div class="val" id="metricPreemptedCount">0</div>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-card-icon" style="background: rgba(6, 182, 212, 0.15); color: #06b6d4;">
+                <i class="fa-solid fa-gauge-high"></i>
+            </div>
+            <div class="metric-content">
+                <h4>Speed & Status</h4>
+                <div class="val" id="metricSpeed">0 km/h</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Workspace -->
+    <div class="dashboard-grid">
+        <!-- Interactive Map -->
+        <div class="map-card">
+            <div class="map-card-header">
+                <span><i class="fa-solid fa-map-location-dot" style="margin-right: 8px; color: #38bdf8;"></i> Live Preemption Map & Green Corridor</span>
+                <span style="font-size: 12px; color: var(--text-secondary);"><i class="fa-solid fa-circle-dot" style="color:#ef4444"></i> 400m Preemption Radar Active</span>
+            </div>
+            <div id="map"></div>
+        </div>
+
+        <!-- Sidebar Controller -->
+        <div class="sidebar-controls">
+            <!-- Simulation Controls -->
+            <div class="panel-box">
+                <h3><i class="fa-solid fa-play" style="color: #38bdf8;"></i> Mission Control</h3>
+                <div class="btn-group">
+                    <button class="btn btn-primary" id="btnStartSim">
+                        <i class="fa-solid fa-truck-fast"></i> Start Live Simulation
+                    </button>
+                    <button class="btn btn-danger" id="btnEndSim" disabled>
+                        <i class="fa-solid fa-stop"></i> End Active Trip
+                    </button>
+                    <button class="btn btn-secondary" id="btnResetMap">
+                        <i class="fa-solid fa-rotate-right"></i> Reset Map & Signals
+                    </button>
+                </div>
+            </div>
+
+            <!-- Intersections Density Control -->
+            <div class="panel-box" style="flex: 1; overflow-y: auto; max-height: 250px;">
+                <h3><i class="fa-solid fa-sliders" style="color: #f59e0b;"></i> Traffic Density & Timing</h3>
+                <div id="junctionsList">
+                    <p style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 10px;">
+                        No signals registered yet. Start simulation to register route signals.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Live Event Log -->
+            <div class="panel-box">
+                <h3><i class="fa-solid fa-terminal" style="color: #10b981;"></i> Preemption Event Stream</h3>
+                <div class="log-box" id="logBox">
+                    <div class="log-entry info">
+                        <span class="time">[INIT]</span>
+                        <span>System loaded. Ready for real-time telemetry.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS & Socket.io Client -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="/socket.io/socket.io.js"></script>
+
+    <script>
+        // Initialize Map centered around default demo coordinates (Kolkata)
+        const defaultCenter = [22.5842, 88.3137];
+        const map = L.map('map', { zoomControl: true }).setView(defaultCenter, 13);
+
+        // Dark tile layer for sleek command center aesthetic
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap &copy; CARTO',
+            maxZoom: 19
+        }).addTo(map);
+
+        // State trackers
+        const signalsMap = new Map();
+        let ambulanceMarker = null;
+        let radarCircle = null;
+        let routePolyline = null;
+        let activeTrip = null;
+        let simulationInterval = null;
+
+        // Custom Ambulance Marker
+        function createAmbulanceIcon() {
+            return L.divIcon({
+                className: 'amb-marker-wrapper',
+                html: `
+                    <div class="amb-pulse-ring"></div>
+                    <div class="amb-badge"><i class="fa-solid fa-truck-medical"></i></div>
+                `,
+                iconSize: [48, 48],
+                iconAnchor: [24, 24]
+            });
+        }
+
+        // Custom Signal Marker
+        function createSignalIcon(mode = 'NORMAL', label = 'SIG') {
+            const isEmergency = mode === 'EMERGENCY_OVERRIDE';
+            return L.divIcon({
+                className: 'signal-div-icon',
+                html: `
+                    <div class="signal-marker ${isEmergency ? 'emergency' : 'normal'}">
+                        ${isEmergency ? '⚡' : '🟢'}
+                    </div>
+                `,
+                iconSize: [28, 28],
+                iconAnchor: [14, 14]
+            });
+        }
+
+        // Logging helper
+        function addLog(message, type = 'info') {
+            const box = document.getElementById('logBox');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const time = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="time">[${time}]</span> <span>${message}</span>`;
+            box.appendChild(entry);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        // Socket.IO Connection
+        const socket = io();
+
+        socket.on('connect', () => {
+            document.getElementById('socketDot').className = 'dot online';
+            document.getElementById('socketText').innerText = 'Socket: Connected';
+            addLog(`WebSocket connection established (ID: ${socket.id})`, 'success');
+            loadInitialData();
+        });
+
+        socket.on('disconnect', () => {
+            document.getElementById('socketDot').className = 'dot offline';
+            document.getElementById('socketText').innerText = 'Socket: Disconnected';
+            addLog('WebSocket disconnected. Reconnecting...', 'alert');
+        });
+
+        // Listen for Ambulance GPS Updates
+        socket.on('ambulance:location', (amb) => {
+            updateAmbulancePosition(amb);
+        });
+
+        // Listen for Traffic Signal State Changes
+        socket.on('signal:status', (signal) => {
+            updateSignalOnMap(signal);
+        });
+
+        socket.on('TRIP_STARTED', ({ trip, ambulance }) => {
+            activeTrip = trip;
+            drawRoute(trip.route);
+            addLog(`Trip activated for ${ambulance.ambulanceId}. Distance: ${Math.round(trip.distanceM)}m`, 'success');
+            document.getElementById('btnStartSim').disabled = true;
+            document.getElementById('btnEndSim').disabled = false;
+        });
+
+        socket.on('TRIP_ENDED', () => {
+            activeTrip = null;
+            if (routePolyline) map.removeLayer(routePolyline);
+            if (radarCircle) map.removeLayer(radarCircle);
+            addLog('Trip completed. Signals resumed normal cycles.', 'info');
+            document.getElementById('btnStartSim').disabled = false;
+            document.getElementById('btnEndSim').disabled = true;
+            document.getElementById('metricPreemptedCount').innerText = '0';
+        });
+
+        function updateAmbulancePosition(amb) {
+            if (!amb || !amb.lat || !amb.lng) return;
+            const latlng = [amb.lat, amb.lng];
+
+            if (!ambulanceMarker) {
+                ambulanceMarker = L.marker(latlng, { icon: createAmbulanceIcon() }).addTo(map);
+                radarCircle = L.circle(latlng, {
+                    radius: 400,
+                    color: '#ef4444',
+                    fillColor: '#ef4444',
+                    fillOpacity: 0.1,
+                    weight: 1,
+                    dashArray: '4, 4'
+                }).addTo(map);
+            } else {
+                ambulanceMarker.setLatLng(latlng);
+                if (radarCircle) radarCircle.setLatLng(latlng);
+            }
+
+            document.getElementById('metricAmbulanceCount').innerText = '1';
+            document.getElementById('metricSpeed').innerText = `${Math.round(amb.speed || 50)} km/h`;
+        }
+
+        function updateSignalOnMap(signal) {
+            if (!signal || !signal.signalId) return;
+            const latlng = [signal.lat, signal.lng];
+
+            let marker = signalsMap.get(signal.signalId);
+            if (!marker) {
+                marker = L.marker(latlng, { icon: createSignalIcon(signal.mode, signal.signalId) }).addTo(map);
+                marker.bindPopup(`<b>${signal.name || signal.signalId}</b><br>Mode: ${signal.mode}<br>Density: ${signal.density || 0}%`);
+                signalsMap.set(signal.signalId, marker);
+            } else {
+                marker.setIcon(createSignalIcon(signal.mode, signal.signalId));
+            }
+
+            // Update metrics
+            let preemptCount = 0;
+            signalsMap.forEach((m) => {
+                // Count overridden
+            });
+            if (signal.mode === 'EMERGENCY_OVERRIDE') {
+                addLog(`⚡ Signal ${signal.signalId} switched to EMERGENCY GREEN priority!`, 'alert');
+            } else if (signal.mode === 'NORMAL') {
+                addLog(`🟢 Signal ${signal.signalId} returned to normal schedule.`, 'info');
+            }
+
+            refreshSignalsUI();
+        }
+
+        function drawRoute(routeCoords) {
+            if (!routeCoords || !routeCoords.length) return;
+            const latlngs = routeCoords.map(([lng, lat]) => [lat, lng]);
+
+            if (routePolyline) map.removeLayer(routePolyline);
+
+            routePolyline = L.polyline(latlngs, {
+                color: '#06b6d4',
+                weight: 5,
+                opacity: 0.85,
+                lineJoin: 'round'
+            }).addTo(map);
+
+            map.fitBounds(routePolyline.getBounds(), { padding: [50, 50] });
+        }
+
+        async function loadInitialData() {
+            try {
+                const [sigRes, ambRes] = await Promise.all([
+                    fetch('/api/signals').then(r => r.json()),
+                    fetch('/api/ambulances').then(r => r.json())
+                ]);
+
+                if (Array.isArray(sigRes)) {
+                    document.getElementById('metricSignalsCount').innerText = sigRes.length;
+                    sigRes.forEach(s => updateSignalOnMap(s));
+                }
+                if (Array.isArray(ambRes) && ambRes.length > 0) {
+                    updateAmbulancePosition(ambRes[0]);
+                }
+            } catch (err) {
+                console.error('Error fetching initial state:', err);
+            }
+        }
+
+        function refreshSignalsUI() {
+            fetch('/api/signals').then(r => r.json()).then(signals => {
+                const list = document.getElementById('junctionsList');
+                if (!signals.length) return;
+                list.innerHTML = '';
+
+                let activePreempts = 0;
+                signals.forEach(s => {
+                    if (s.mode === 'EMERGENCY_OVERRIDE') activePreempts++;
+                    const item = document.createElement('div');
+                    item.className = 'junction-item';
+                    item.innerHTML = `
+                        <div class="junction-header">
+                            <strong>${s.name || s.signalId}</strong>
+                            <span style="color: ${s.mode === 'EMERGENCY_OVERRIDE' ? '#ef4444' : '#10b981'}; font-weight: 700;">
+                                ${s.mode === 'EMERGENCY_OVERRIDE' ? '⚡ EMERGENCY' : '🟢 ' + s.greenSeconds + 's Green'}
+                            </span>
+                        </div>
+                        <div class="density-control">
+                            <span>Density: <b id="val-${s.signalId}">${s.density || 0}%</b></span>
+                            <input type="range" min="0" max="100" value="${s.density || 0}" data-id="${s.signalId}" onchange="changeDensity('${s.signalId}', this.value)">
+                        </div>
+                    `;
+                    list.appendChild(item);
+                });
+                document.getElementById('metricPreemptedCount').innerText = activePreempts;
+                document.getElementById('metricSignalsCount').innerText = signals.length;
+            });
+        }
+
+        window.changeDensity = async (signalId, density) => {
+            document.getElementById(`val-${signalId}`).innerText = `${density}%`;
+            await fetch(`/api/signals/${signalId}/density`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ density: Number(density) })
+            });
+        };
+
+        // Button Listeners
+        document.getElementById('btnStartSim').addEventListener('click', async () => {
+            addLog('Initiating simulation run...', 'info');
+            document.getElementById('btnStartSim').disabled = true;
+
+            const origin = { lat: 22.5726, lng: 88.3639 };
+            const destination = { lat: 22.5958, lng: 88.2636 };
+
+            await fetch('/api/ambulances', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ambulanceId: 'AMB1', name: 'Rapid Response Unit 1', ...origin })
+            });
+
+            const tripRes = await fetch('/api/trips/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ambulanceId: 'AMB1', origin, destination })
+            });
+            const trip = await tripRes.json();
+
+            // Populate Signals along route
+            const step = Math.max(5, Math.floor(trip.route.length / 5));
+            let sCount = 0;
+            for (let i = step; i < trip.route.length - 2; i += step) {
+                sCount++;
+                const [lng, lat] = trip.route[i];
+                await fetch('/api/signals', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ signalId: `SIG${sCount}`, name: `Crossroad ${sCount}`, lat, lng })
+                });
+            }
+
+            refreshSignalsUI();
+
+            // Start step-by-step movement
+            let idx = 0;
+            simulationInterval = setInterval(async () => {
+                if (idx >= trip.route.length) {
+                    clearInterval(simulationInterval);
+                    await fetch(`/api/trips/${trip._id || trip.id}/end`, { method: 'POST' });
+                    return;
+                }
+                const [lng, lat] = trip.route[idx];
+                await fetch('/api/ambulances/AMB1/location', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lat, lng, speed: 50 })
+                });
+                idx++;
+            }, 300);
+        });
+
+        document.getElementById('btnEndSim').addEventListener('click', async () => {
+            if (simulationInterval) clearInterval(simulationInterval);
+            if (activeTrip) {
+                await fetch(`/api/trips/${activeTrip._id || activeTrip.id}/end`, { method: 'POST' });
+            }
+        });
+
+        document.getElementById('btnResetMap').addEventListener('click', () => {
+            window.location.reload();
+        });
+
+        // Periodic UI poll fallback
+        setInterval(refreshSignalsUI, 3000);
+    </script>
+</body>
+</html>
