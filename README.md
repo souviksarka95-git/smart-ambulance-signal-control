@@ -135,5 +135,3 @@ Roadmap
 [ ] Authentication for ambulances and signal controllers
 [ ] Tests for the preemption logic
 ---
-License
-MIT
