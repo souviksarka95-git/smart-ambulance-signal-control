@@ -60,6 +60,31 @@ function createRouter(hub) {
         res.json(await db.listAmbulances());
     }));
 
+    r.get('/ambulances/:ambulanceId', wrap(async (req, res) => {
+        const amb = await db.getAmbulance(req.params.ambulanceId);
+        if (!amb) {
+            return res.status(404).json({ error: `Ambulance "${req.params.ambulanceId}" not found` });
+        }
+        res.json(amb);
+    }));
+
+    r.get('/ambulances/:ambulanceId/location', wrap(async (req, res) => {
+        const amb = await db.getAmbulance(req.params.ambulanceId);
+        if (!amb) {
+            return res.status(404).json({ error: `Ambulance "${req.params.ambulanceId}" not found` });
+        }
+        res.json({
+            ambulanceId: amb.ambulanceId,
+            name: amb.name,
+            lat: amb.lat,
+            lng: amb.lng,
+            speed: amb.speed,
+            status: amb.status,
+            activeTripId: amb.activeTripId,
+            updatedAt: amb.updatedAt
+        });
+    }));
+
     r.post('/ambulances/:ambulanceId/location', wrap(async (req, res) => {
         const { lat, lng, speed = 0 } = req.body;
         needNums(Number(lat), Number(lng));
@@ -105,6 +130,10 @@ function createRouter(hub) {
 
     r.get('/trips/active', wrap(async (_req, res) => {
         res.json(await db.listActiveTrips());
+    }));
+
+    r.get('/trips', wrap(async (_req, res) => {
+        res.json(await db.listAllTrips());
     }));
 
     r.post('/trips/:id/end', wrap(async (req, res) => {

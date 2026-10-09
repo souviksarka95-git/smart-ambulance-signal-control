@@ -4,6 +4,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const connectDB = require('./src/config/db');
+const db = require('./src/services/dbService');
 const { createRouter } = require('./src/routes/route');
 const { handleLocationUpdate } = require('./src/controllers/SignalController');
 
@@ -77,6 +78,34 @@ io.on('connection', (socket) => {
             }
         } catch (err) {
             console.error('[Socket] ambulance:update error:', err.message);
+        }
+    });
+
+    // Fetch current GPS location of an ambulance via WebSocket
+    socket.on('ambulance:get_location', async (ambulanceId, callback) => {
+        try {
+            const amb = await db.getAmbulance(ambulanceId || 'AMB1');
+            if (!amb) {
+                if (typeof callback === 'function') callback({ success: false, error: 'Ambulance not found' });
+                return;
+            }
+            const locData = {
+                ambulanceId: amb.ambulanceId,
+                name: amb.name,
+                lat: amb.lat,
+                lng: amb.lng,
+                speed: amb.speed,
+                status: amb.status,
+                activeTripId: amb.activeTripId,
+                updatedAt: amb.updatedAt
+            };
+            if (typeof callback === 'function') {
+                callback({ success: true, data: locData });
+            } else {
+                socket.emit('ambulance:location', locData);
+            }
+        } catch (err) {
+            if (typeof callback === 'function') callback({ success: false, error: err.message });
         }
     });
 

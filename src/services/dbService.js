@@ -89,6 +89,12 @@ const dbService = {
         return await Ambulance.findOne({ ambulanceId });
     },
 
+    async getAmbulanceLocation(ambulanceId) {
+        return await Ambulance.findOne({ ambulanceId })
+            .select('ambulanceId name lat lng speed status activeTripId updatedAt')
+            .lean();
+    },
+
     async updateAmbulanceLocation(ambulanceId, lat, lng, speed = 0) {
         return await Ambulance.findOneAndUpdate(
             { ambulanceId },
@@ -126,6 +132,10 @@ const dbService = {
 
     async listActiveTrips() {
         return await Trip.find({ status: 'ACTIVE' }).sort({ createdAt: -1 }).lean();
+    },
+
+    async listAllTrips() {
+        return await Trip.find().sort({ createdAt: -1 }).limit(20).lean();
     },
 
     async endTrip(tripId) {
