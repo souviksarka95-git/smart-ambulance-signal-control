@@ -105,25 +105,59 @@ Ambulance ──(ambulance:update)──▶ Server ──▶ Checks route & sign
 
 ### REST API
 
-- **Health Check**:
-  - `GET /api/health`
+- **Get Ambulance GPS Location**:
+  - `GET /api/ambulances/:ambulanceId/location`
   - Response:
     ```json
     {
-      "status": "online",
-      "service": "Smart Ambulance Signal Control System",
-      "timestamp": "2026-10-08T15:51:39.123Z"
+      "ambulanceId": "AMB1",
+      "name": "Rapid Response Unit 1",
+      "lat": 22.5726,
+      "lng": 88.3639,
+      "speed": 55,
+      "status": "ON_TRIP",
+      "activeTripId": "6705...",
+      "updatedAt": "2026-10-09T17:35:10.123Z"
     }
     ```
+
+- **Get Ambulance Details**:
+  - `GET /api/ambulances/:ambulanceId`
+
+- **List All Ambulances**:
+  - `GET /api/ambulances`
+
+- **Update Ambulance GPS Location**:
+  - `POST /api/ambulances/:ambulanceId/location`
+  - Body: `{ "lat": 22.5726, "lng": 88.3639, "speed": 55 }`
+
+- **Health Check**:
+  - `GET /api/health`
 
 ### Socket.IO Events
 
 | Event Name | Direction | Payload | Description |
 | :--- | :--- | :--- | :--- |
-| `ambulance:update` | Client ➔ Server | `{ ambulanceId, lat, lng, speed, heading }` | Ambulance sends its updated GPS location |
-| `ambulance:location` | Server ➔ Broadcast | `{ ambulanceId, lat, lng, speed, heading }` | Broadcasted to traffic controllers and dashboard |
+| `ambulance:get_location` | Client ➔ Server | `ambulanceId, callback` | Request current GPS coordinates on demand |
+| `ambulance:update` | Client ➔ Server | `{ ambulanceId, lat, lng, speed }` | Ambulance streams its live GPS location |
+| `ambulance:location` | Server ➔ Broadcast | `{ ambulanceId, lat, lng, speed, ... }` | Broadcasted to traffic controllers and dashboard |
 | `signal:override` | Client ➔ Server | `{ signalId, status, duration }` | Command to override signal state |
 | `signal:status` | Server ➔ Broadcast | `{ signalId, status, duration }` | Broadcasted signal change notification |
+
+---
+
+## 🛰️ How to Get & Transmit Real GPS in Ambulances
+
+1. **Browser / Mobile Driver Mode (Built into Dashboard)**:
+   - Open `http://localhost:4000` on a smartphone or vehicle tablet.
+   - Click **"Start Device GPS (Driver Mode)"**.
+   - The app uses HTML5 `navigator.geolocation.watchPosition` to read the device's real GPS chip and continuously sync coordinates to the server.
+
+2. **IoT Hardware Modules (NEO-6M GPS + ESP32 / Arduino / Raspberry Pi)**:
+   - Connect a GPS module via serial (UART).
+   - Parse NMEA `$GPRMC` or `$GPGGA` strings to extract `lat` and `lng`.
+   - Send HTTP POST requests to `http://<SERVER_IP>:4000/api/ambulances/AMB1/location`.
+   - See [examples/gpsTrackerClient.js](file:///examples/gpsTrackerClient.js) for a runnable client implementation.
 
 ---
 
